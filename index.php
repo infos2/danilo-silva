@@ -1,7 +1,7 @@
 <?php
 
-require_once 'Request.php';
+//TODO: implementar auto requirimento de classes  
+require_once ("autoload.php");
 
-$request = new Request($_SERVER['REQUEST_METHOD'], $_SERVER['SERVER_PROTOCOL'], $_SERVER['HTTP_HOST'], $_SERVER['REQUEST_URI'], $_SERVER['QUERY_STRING']);
-
-var_dump($request);
+//Externaliza o resultado do processamento da API em formato JSON, sempre.
+echo ((new RequestTreater())->start());
