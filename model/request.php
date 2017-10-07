@@ -74,8 +74,10 @@ class Request {
     private function setUri($uri) {
         $cleanUri = explode('?', $uri); //Quebra a uri na '?' para separar da query string
         $arrayUri = explode('/', $cleanUri[0]); //Depois, quebra a uri na '/' para separar cada parte e joga na variável $arrayUri
-        //Apenas para ajustar as posições do array caso os arquivos não estejam na raiz da pasta html ou htdocs. Essa parte não é necessária para o projeto
-        if ($arrayUri[1] == "ProjetoDW") {
+        
+        //Apenas para ajustar as posições do array caso os arquivos não estejam na raiz da pasta html ou htdocs. 
+        //Essa parte não é necessária para o projeto
+        if ($arrayUri[1] == "danilo-silva") {
             unset($arrayUri[1]);
             $arrayUri = array_values($arrayUri);
         }

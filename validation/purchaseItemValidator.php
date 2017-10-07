@@ -1,6 +1,6 @@
 <?php
 
-class PurchaseValidator{
+class PurchaseItemValidator{
 
 
 
