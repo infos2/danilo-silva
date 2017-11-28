@@ -1,13 +1,14 @@
 <?php
 
-//require_once ("model/user.php");
-//require_once ("database/database.php");
-//require_once ("exception/requestException.php");
-
 class EmployeeController {
 
-//    private $allowedOperations = Array('info' => 'search', 'register' => 'create', 'update' => 'update', 'disable' => 'disable');
     private $request;
+    private $permissions = Array(
+        'search' => ['admin', 'normal'],
+        'register' => ['admin'],
+        'update' => ['admin'],
+        'delete' => ['admin'],
+    );
 
     public function __construct($request) {
         $this->request = $request;
@@ -16,39 +17,65 @@ class EmployeeController {
     public function routeOperation() {
         //Pegar da request qual operação deve ser feita
         $operation = $this->request->getOperation();
-
-        //Sabendo qual operação ser feita, chamar a função correspondente por meio do array de operações
-        //$func = $this->allowedOperations[$operation];
-
-        return $this->$operation();
+//        if (!$this->verifyPermission($operation))
+//            return json_encode(Array('code' => '401', 'message' => 'Unauthorized'));
+//        else
+        //Chamar a operação
+            return $this->$operation();
     }
 
     private function register() {
         $body = $this->request->getBody();
         $collection = $this->request->getResource();
         try {
-            new Employee($body['name'], $body['cpf'], $body['rg'], $body['fone'], $body['email'], $body['birthdate'], $body['roleId']);
-            return (new DBHandler())->insert($body, $collection);
+            new Employee($body['name'], $body['cpf'], $body['phones'], $body['email'], $body['birthdate'], $body['role']);
+            (new DBHandler())->insert($body, $collection);
+
+            return json_encode(Array('code' => '200', 'message' => 'Ok'));
         } catch (RequestException $ue) {
             return $ue->toJson();
         }
     }
 
     private function search() {
-        $options = Array(
-            'sort' => ['bdate' => -1]
-        );
         $queryString = $this->request->getQueryString();
         $collection = $this->request->getResource();
-        return (new DBHandler())->search($queryString, $collection, $options);
+        return (new DBHandler())->search($queryString, $collection);
     }
 
     private function update() {
-        return "função de atualizar";
+        $body = $this->request->getBody();
+        $collection = $this->request->getResource();
+        $id = $body['_id'];
+        unset($body['_id']);
+        try {
+            new Employee($body['name'], $body['cpf'], $body['phones'], $body['email'], $body['birthdate'], $body['role']);
+            $result = (new DBHandler())->update($collection, ['_id' => $id, 'enabled' => true], ['$set' => $body]);
+            if ($result->getMatchedCount() == 0)
+                throw new RequestException('404', 'Object not found');
+            return json_encode(Array('code' => '200', 'message' => 'Ok'));
+        } catch (RequestException $ue) {
+            return $ue->toJson();
+        }
     }
 
-    private function disable() {
-        return "função de desativar";
+    private function delete() {
+        $body = $this->request->getBody();
+        $collection = $this->request->getResource();
+        $id = $body['_id'];
+        $result = (new DBHandler())->delete($collection, $id);
+        if ($result->getModifiedCount() == 0)
+            throw new RequestException('404', 'Object not found');
+        return json_encode(Array('code' => '200', 'message' => 'Ok'));
+    }
+
+    private function verifyPermission($operation) {
+        session_start();
+        if (isset($_SESSION['user'])) {
+            if (in_array($_SESSION['user']->usertype, $this->permissions[$operation]))
+                return true;
+        }
+        return false;
     }
 
 }

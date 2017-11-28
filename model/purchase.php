@@ -3,48 +3,56 @@
 class Purchase {
 
     private $timestamp;
+    private $purchaseItems;
     private $totalPrice;
-    private $providerId;
-    private $finished;
+    private $provider;
+    private $pv;
 
-    public function __construct($timestamp, $totalPrice, $providerId, $finished) {
-        //$this->uv = new UserValidator();
-        $this->timestamp = $timestamp;
-        $this->totalPrice = $totalPrice;
-        $this->providerId = $providerId;
-        $this->finished = $finished;
+    public function __construct($purchaseItems, $totalPrice, $provider) {
+        $this->pv = new PurchaseValidator();
+
+        $this->setTimestamp();
+        $this->setPurchaseItems($purchaseItems);
+        $this->setTotalPrice($totalPrice);
+        $this->setProvider($provider);
     }
 
     public function getTimestamp() {
         return $this->timestamp;
     }
 
-    public function setTimestamp($timestamp) {
-        $this->timestamp = $timestamp;
+    public function getPurchaseItems() {
+        return $this->purchaseItems;
     }
 
     public function getTotalPrice() {
         return $this->totalPrice;
     }
 
-    public function setTotalPrice($totalPrice) {
+    public function getProvider() {
+        return $this->provider;
+    }
+
+    private function setTimestamp() {
+        $this->timestamp = (new DateTime)->getTimestamp();
+    }
+
+    private function setPurchaseItems($purchaseItems) {
+        foreach ($purchaseItems as $item) {
+            new Item('purchase', $item['product'], $item['quantity'], $item['totalvalue']);
+        }
+        $this->purchaseItems = $purchaseItems;
+    }
+
+    private function setTotalPrice($totalPrice) {
+        if (!$this->pv->isTotalPriceValid($totalPrice, $this->purchaseItems))
+            throw new RequestException("400", "Invalid price");
+
         $this->totalPrice = $totalPrice;
     }
 
-    public function getProviderId() {
-        return $this->providerId;
-    }
-
-    public function setProviderId($providerId) {
-        $this->providerId = $providerId;
-    }
-
-    public function getFinished() {
-        return $this->finished;
-    }
-
-    public function setFinished($finished) {
-        $this->finished = $finished;
+    private function setProvider($provider) {
+        $this->provider = new Provider($provider['name'], $provider['cnpj'], $provider['phones'], $provider['email'], $provider['description']);
     }
 
 }

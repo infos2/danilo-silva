@@ -11,7 +11,7 @@ class Request {
     private $resource;
     private $operation;
     private $rv;
-    private $arrayOperations = Array('POST/' => 'register', 'PUT/' => 'update', 'PUT/delete' => 'disable', 'GET/' => 'search');
+    private $arrayOperations = Array('POST/' => 'register', 'PUT/' => 'update', 'PUT/delete' => 'delete', 'GET/' => 'search');
 
     public function __construct($method, $protocol, $host, $uri = null, $queryString = null, $body = null) {
         //Cria uma instância da classe requestValidador e joga na variável $rv
@@ -32,10 +32,6 @@ class Request {
         return $this->method;
     }
 
-    public function getPath() {
-        return $this->path;
-    }
-
     public function getBody() {
         return $this->body;
     }
@@ -53,9 +49,10 @@ class Request {
     }
 
     private function setMethod($method) {
-        //Se o método não for válido, lança uma excessão. Se for válido, é atribuído à classe.
+        //Se o método não for válido, lança uma excessão. Se for válido, é atribuído à variável $method.
         if (!$this->rv->isMethodValid($method))
             throw new RequestException("405", "Method not allowed");
+
         $this->method = $method;
     }
 
@@ -63,6 +60,7 @@ class Request {
         //Se o protocolo não for válido, lança uma excessão. Se for válido, é atribuído à classe.
         if (!$this->rv->isProtocolValid($protocol))
             throw new RequestException("505", "HTTP Version Not Supported");
+
         $this->protocol = $protocol;
     }
 
@@ -74,16 +72,15 @@ class Request {
     private function setUri($uri) {
         $cleanUri = explode('?', $uri); //Quebra a uri na '?' para separar da query string
         $arrayUri = explode('/', $cleanUri[0]); //Depois, quebra a uri na '/' para separar cada parte e joga na variável $arrayUri
-        
         //Apenas para ajustar as posições do array caso os arquivos não estejam na raiz da pasta html ou htdocs. 
         //Essa parte não é necessária para o projeto
-        if ($arrayUri[1] == "danilo-silva") {
+        if ($arrayUri[1] == "ProjetoDW") {
             unset($arrayUri[1]);
             $arrayUri = array_values($arrayUri);
         }
 
         if (!$this->rv->isUriValid($arrayUri, $this->method))
-            throw new RequestException("400", "Bad request");
+            throw new RequestException("400", "Invalid URI");
 
         $this->uri = $arrayUri;
     }
@@ -97,29 +94,62 @@ class Request {
                 $a = explode('=', $value);
                 if (!$this->rv->isQueryStringValid($a))
                     throw new RequestException("400", "Bad request");
+
                 $finalQueryString[$a[0]] = $a[1];
             }
         }
-        $this->queryString = $finalQueryString;
+        $this->queryString = $this->treatQueryString($finalQueryString); //$finalQueryString;
     }
 
     private function setBody($body) {
         $bodyArray = json_decode($body, true);
-        if (!$this->rv->isBodyValid($bodyArray, $this->operation, $this->resource))
-            throw new RequestException("400", "Bad request");
+        if (!$this->rv->isBodyValid($this->resource, $this->operation, $bodyArray))
+            throw new RequestException("400", "Invalid body request");
+
+        if (isset($bodyArray['_id']))
+            $bodyArray['_id'] = $this->treatId($bodyArray['_id']);
 
         $this->body = $bodyArray;
     }
 
     private function setResource() {
-        $uri = $this->uri;
-        $this->resource = $uri[1];
+//        $uri = $this->uri;
+        $this->resource = $this->uri[1];
     }
 
     private function setOperation() {
+        //Se veio alguma operação, joga na variável $uriOperation. Se não, deixa vazia
         $uriOperation = (!isset($this->uri[2])) ? "" : $this->uri[2];
 
-        $this->operation = $this->arrayOperations[$this->method . '/' . $uriOperation];
+        if ($this->resource == 'login' || $this->resource == 'logout' || $this->resource == 'test')
+            $this->operation = $this->resource;
+        else
+        //A operação vai ser igual a o que estiver na $arraOperations na posição da junção do $method + / + $uriOperation
+            $this->operation = $this->arrayOperations[$this->method . '/' . $uriOperation];
+    }
+
+    private function treatQueryString($qs) {
+        $newQs = Array();
+        if (isset($qs['_id'])) {
+            $newQs['_id'] = $this->treatId($qs['_id']);
+            unset($qs['_id']);
+        }
+
+        foreach ($qs as $key => $value) {
+            if (!is_numeric($value))
+                $newQs[$key] = new MongoDB\BSON\Regex('.*' . $value . '.*', '');
+            else
+                $newQs[$key] = (float) $value;
+        }
+
+        return $newQs;
+    }
+
+    private function treatId($id) {
+        if (preg_match('/^[a-f\d]{24}$/i', $id))
+            return new MongoDB\BSON\ObjectId($id);
+
+        return $id;
     }
 
 }
